@@ -53,37 +53,56 @@ object DomainLinkingStage extends LazyLogging:
 
                                 messageOpt match
                                     case None =>
-                                        // Domain message was deleted, so delete all associated links & backlinks
-                                        // when messages on both ends are deleted
-                                        // TODO only when "many"-side was deleted?
+                                        // Domain message was deleted, so delete associated links & backlinks where this messages sits on the "many"-side
 
-                                        val linkKey = s"${StateStoreSection.LNK}/$qmid"
-                                        val linkValues =
+                                        // (a) remove many-to-one relations starting here
+                                        val linkKey: String = s"${StateStoreSection.LNK}/$qmid"
+
+                                        val linkValuesOld: Map[(ChannelName, MessageFormatName), QualifiedMessageId] =
                                             cache
                                                 .getStringSet(linkKey)
-                                                .filter(v => cache.get(s"${StateStoreSection.DOM}/$v").isEmpty)
+                                                .map: entryStr =>
+                                                    val entryQmid = QualifiedMessageId(entryStr)
+                                                    entryQmid.qualifier -> entryQmid
+                                                .toMap
 
-                                        // Delete backlinks ending here
-                                        linkValues.foreach: value =>
-                                            val _backLinkKey = s"${StateStoreSection.BLK}/$value"
-                                            cache.removeStringFromSet(_backLinkKey, qmid.toString)
+                                        val linkRemovals = config.manyToOneRelationsStartingFrom
+                                            .getOrElse(qmid.qualifier, Set.empty)
+                                            .flatMap(mtoConfig => linkValuesOld.get(mtoConfig.relTo))
 
-                                        // Delete links starting here
-                                        cache.removeStringsFromSet(linkKey, linkValues)
+                                        // (a.1) links
+                                        cache.removeStringsFromSet(linkKey, linkRemovals.map(_.toString))
 
+                                        // (a.2) back links
+                                        linkRemovals
+                                            .foreach: value =>
+                                                val _backLinkKey = s"${StateStoreSection.BLK}/$value"
+                                                cache.removeStringFromSet(_backLinkKey, qmid.toString)
+
+                                        // (b) delete one-to-many relations ending here
                                         val backLinkKey = s"${StateStoreSection.BLK}/$qmid"
-                                        val backLinkValues =
+
+                                        val backLinkValuesOld
+                                            : Map[(ChannelName, MessageFormatName), QualifiedMessageId] =
                                             cache
                                                 .getStringSet(backLinkKey)
-                                                .filter(v => cache.get(s"${StateStoreSection.DOM}/$v").isEmpty)
+                                                .map: entryStr =>
+                                                    val entryQmid = QualifiedMessageId(entryStr)
+                                                    entryQmid.qualifier -> entryQmid
+                                                .toMap
 
-                                        // Delete links ending here
-                                        backLinkValues.foreach: value =>
+                                        val backLinkRemovals =
+                                            config.oneToManyRelationsLeadingTo
+                                                .getOrElse(qmid.qualifier, Set.empty)
+                                                .flatMap(otmConfig => backLinkValuesOld.get(otmConfig.relFrom))
+
+                                        // (b.1) back links
+                                        cache.removeStringsFromSet(backLinkKey, backLinkRemovals.map(_.toString))
+
+                                        // (b.2) links
+                                        backLinkRemovals.foreach: value =>
                                             val _linkKey = s"${StateStoreSection.LNK}/$value"
                                             cache.removeStringFromSet(_linkKey, qmid.toString)
-
-                                        // Delete backlinks starting here
-                                        cache.removeStringsFromSet(backLinkKey, backLinkValues)
 
                                         flushCache(cache.viewChanged, stateStore)
                                         (Some(qmid), pass)
