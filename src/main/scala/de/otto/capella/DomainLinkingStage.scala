@@ -53,7 +53,7 @@ object DomainLinkingStage extends LazyLogging:
 
                                 messageOpt match
                                     case None =>
-                                        // Domain message was deleted, so delete associated links & backlinks where this messages sits on the "many"-side
+                                        // Domain message was deleted, so delete associated links & backlinks where this messages sits on the "many side"
 
                                         // (a) remove many-to-one relations starting here
                                         val linkKey: String = s"${StateStoreSection.LNK}/$qmid"
@@ -105,7 +105,16 @@ object DomainLinkingStage extends LazyLogging:
                                             cache.removeStringFromSet(_linkKey, qmid.toString)
 
                                         flushCache(cache.viewChanged, stateStore)
-                                        (Some(qmid), pass)
+
+                                        // If the node that was just deleted was on the "many side" as part of a
+                                        // one-to-many relationship, then mark a parent node as affected
+                                        val affectedQmid =
+                                            if backLinkRemovals.nonEmpty then backLinkRemovals.headOption
+                                            else Some(qmid)
+
+                                        // println(s"LINKINGDELETE $qmid # $affectedQmid")
+
+                                        (affectedQmid, pass)
 
                                     case Some(message) =>
                                         val parsedDoc: DocumentContext = jsonPathContext.parse(message.toJson)

@@ -156,7 +156,7 @@ class CodomainInliningStageTest extends AnyFlatSpec, Matchers, Diagrams:
                 .linkDomainMessages(relationsConfig, stateStore)
                 .triggerAffectedCodomainMessages(relationsConfig, stateStore)
                 .deduplicateCodomainMessages(Some(CodomainDeduplicationConfig(1, 50.millis)))
-                .composeCodomainMessages(stateStore)
+                .composeCodomainMessages(relationsConfig, stateStore)
                 .runDrain()
 
             val out =
@@ -378,7 +378,7 @@ class CodomainInliningStageTest extends AnyFlatSpec, Matchers, Diagrams:
             .linkDomainMessages(relationsConfig, stateStore)
             .triggerAffectedCodomainMessages(relationsConfig, stateStore)
             .deduplicateCodomainMessages(Some(CodomainDeduplicationConfig(1, 50.millis)))
-            .composeCodomainMessages(stateStore)
+            .composeCodomainMessages(relationsConfig, stateStore)
             .runDrain()
 
         val out =

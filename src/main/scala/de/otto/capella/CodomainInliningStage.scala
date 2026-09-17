@@ -58,7 +58,7 @@ object CodomainInliningStage extends LazyLogging:
                                     .map: codomainMessageStaged =>
                                         val codomainMessageTemp: ObjectNode = mapper.createObjectNode()
                                         doInline(
-                                            QualifiedMessageId(config.root._1, config.root._2, codomainMessageId),
+                                            QualifiedMessageId(config.root, codomainMessageId),
                                             codomainMessageTemp,
                                             codomainMessageStaged,
                                             stateStore
@@ -107,12 +107,6 @@ object CodomainInliningStage extends LazyLogging:
                     .getStringSet(
                         s"${StateStoreSection.LNK}/$currentDomainMessageId"
                     )
-                    .map: entry =>
-                        val splittedEntry = entry.split("/")
-                        QualifiedMessageId(
-                            ChannelName(splittedEntry(0)),
-                            MessageFormatName(splittedEntry(1)),
-                            MessageId(splittedEntry(2))
-                        )
+                    .map(QualifiedMessageId(_))
             next.foreach: nextMessageId =>
                 doInline(nextMessageId, currentDomainMessage, codomainMessageStaged, stateStore)

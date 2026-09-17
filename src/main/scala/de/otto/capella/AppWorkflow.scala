@@ -54,7 +54,7 @@ object AppWorkflow:
             .linkDomainMessages(relationConfigs, stateStore)
             .triggerAffectedCodomainMessages(relationConfigs, stateStore, parallelism)
             .deduplicateCodomainMessages(codomainConfig.deduplication)
-            .composeCodomainMessages(stateStore)
+            .composeCodomainMessages(relationConfigs, stateStore)
             .inlineDomainMessages(relationConfigs, stateStore, parallelism)
             .filterCodomainMessages(codomainConfig.filtering, parallelism)
             .transformCodomainMessages(codomainConfig.transformation, parallelism)

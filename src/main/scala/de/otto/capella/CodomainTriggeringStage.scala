@@ -29,15 +29,16 @@ object CodomainTriggeringStage extends LazyLogging:
             config: RelationConfigs,
             stateStore: StateStore,
             parallelism: Parallelism = Parallelism(1)
-        ): Flow[(Option[(QualifiedMessageId, Set[MessageId])], Passthrough)] =
+        ): Flow[(Set[MessageId], Passthrough)] =
             in.mapPar(parallelism.toInt):
                 measureMap("CodomainTriggering"):
                     case (None, pass) =>
-                        (None, pass)
+                        (Set.empty, pass)
                     case (Some(qmid), pass) =>
                         try
+                            println(s"CodomainTriggering $qmid")
                             val rootIds = identifyAffected(qmid, config, stateStore)
-                            (Some(qmid, rootIds), pass)
+                            (rootIds, pass)
                         catch
                             case e: RocksDBException =>
                                 throw e
@@ -45,7 +46,7 @@ object CodomainTriggeringStage extends LazyLogging:
                                 logger.error(
                                     s"Error processing record (${pass.record.key}, ${pass.record.value}): ${ex.stackTraceAsString}"
                                 )
-                                (None, pass)
+                                (Set.empty, pass)
 
     private def identifyAffected(
         currentDomainMessageId: QualifiedMessageId,
@@ -57,12 +58,6 @@ object CodomainTriggeringStage extends LazyLogging:
             val next: Set[QualifiedMessageId] =
                 stateStore
                     .getStringSet(s"${StateStoreSection.BLK}/$currentDomainMessageId")
-                    .map: entry =>
-                        val splittedEntry = entry.split("/")
-                        QualifiedMessageId(
-                            ChannelName(splittedEntry(0)),
-                            MessageFormatName(splittedEntry(1)),
-                            MessageId(splittedEntry(2))
-                        )
+                    .map(QualifiedMessageId(_))
             next.flatMap: nextMessageId =>
                 identifyAffected(nextMessageId, config, stateStore)

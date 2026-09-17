@@ -17,43 +17,53 @@ import org.rocksdb.RocksDBException
 import ox.flow.Flow
 
 import scala.util.control.NonFatal
+import de.otto.capella.config.RelationConfigs
 
 object CodomainCompositionStage extends LazyLogging:
 
-    extension (in: Flow[(Seq[(QualifiedMessageId, Seq[MessageId])], Seq[Passthrough])])
+    extension (in: Flow[(Seq[MessageId], Seq[Passthrough])])
         def composeCodomainMessages(
+            config: RelationConfigs,
             stateStore: StateStore
         ): Flow[(Seq[MessageId], Seq[Passthrough])] =
             in.map:
                 measureMap("CodomainComposition"): (payloads, passthroughs) =>
+                    // println(s"+++++++++++ CodomainComposition ${payloads.map(_._1).mkString("; ")}")
                     val payloadsOut: Seq[MessageId] =
-                        payloads.flatMap: (qmid, codomainMessageIds) =>
-                            codomainMessageIds.flatMap: codomainMessageId =>
-                                try
-                                    val codomainKey = s"${StateStoreSection.STA}/$codomainMessageId"
-                                    val codomainMessage: ObjectNode =
-                                        stateStore
-                                            .getJson(codomainKey)
-                                            .fold(mapper.createObjectNode())(_.asInstanceOf[ObjectNode])
-                                    compose(qmid, codomainMessage, stateStore)
-                                    if codomainMessage.isEmpty then stateStore.delete(codomainKey)
-                                    else stateStore.putJson(codomainKey, codomainMessage)
-                                    Some(codomainMessageId)
-                                catch
-                                    case e: RocksDBException =>
-                                        throw e
-                                    case NonFatal(ex) =>
-                                        logger.error(
-                                            s"Error processing domain message ($qmid) and codomain message ($codomainMessageId): ${ex.stackTraceAsString}"
-                                        )
-                                        None
-                    (payloadsOut.distinct, passthroughs)
+                        payloads.flatMap: codomainMessageId =>
+                            try
+                                println(s"+++++++++++*** CodomainComposition $codomainMessageId")
+                                val codomainMessage: ObjectNode =
+                                    mapper.createObjectNode().asInstanceOf[ObjectNode]
+
+                                compose(
+                                    QualifiedMessageId(config.root, codomainMessageId),
+                                    codomainMessage,
+                                    stateStore
+                                )
+                                // compose(qmid, codomainMessage, stateStore)
+
+                                val codomainKey = s"${StateStoreSection.STA}/${codomainMessageId}"
+                                if codomainMessage.isEmpty then stateStore.delete(codomainKey)
+                                else stateStore.putJson(codomainKey, codomainMessage)
+
+                                Some(codomainMessageId)
+                            catch
+                                case e: RocksDBException =>
+                                    throw e
+                                case NonFatal(ex) =>
+                                    logger.error(
+                                        s"Error processing codomain message ($codomainMessageId): ${ex.stackTraceAsString}"
+                                    )
+                                    None
+                    (payloadsOut, passthroughs)
 
     private def compose(
         currentDomainMessageId: QualifiedMessageId,
         codomainMessage: ObjectNode,
         stateStore: StateStore
     ): Unit =
+        println(s"compose current $currentDomainMessageId")
         val currentDomainMessageOpt: Option[JsonNode] =
             stateStore.getJson(s"${StateStoreSection.DOM}/$currentDomainMessageId")
         val currentDomainMessageMap: ObjectNode =
@@ -67,18 +77,10 @@ object CodomainCompositionStage extends LazyLogging:
         )
 
         val next: Set[QualifiedMessageId] =
-            stateStore
-                .getStringSet(
-                    s"${StateStoreSection.LNK}/$currentDomainMessageId"
-                )
-                .map: entry =>
-                    val splittedEntry = entry.split("/")
-                    QualifiedMessageId(
-                        ChannelName(splittedEntry(0)),
-                        MessageFormatName(splittedEntry(1)),
-                        MessageId(splittedEntry(2))
-                    )
+            stateStore.getStringSet(s"${StateStoreSection.LNK}/$currentDomainMessageId").map(QualifiedMessageId(_))
+
         next.foreach: nextMessageId =>
+            println(s"LINK FROM $currentDomainMessageId TO $nextMessageId")
             compose(nextMessageId, codomainMessage, stateStore)
 
     private def setObject(parent: ObjectNode, name: String, objOpt: Option[JsonNode]): Unit =
