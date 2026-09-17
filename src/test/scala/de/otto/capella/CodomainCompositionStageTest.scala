@@ -159,7 +159,7 @@ class CodomainCompositionStageTest extends AnyFlatSpec, Matchers, Diagrams:
                     .runToList()
 
             val out: List[(Seq[MessageId], Seq[Passthrough])] =
-                Flow.fromIterable(outPLI).composeCodomainMessages(stateStore).runToList()
+                Flow.fromIterable(outPLI).composeCodomainMessages(relationsConfig, stateStore).runToList()
 
             // then
             assert(out.size == 19)
@@ -216,11 +216,13 @@ class CodomainCompositionStageTest extends AnyFlatSpec, Matchers, Diagrams:
                 }
             """)
 
-            assert(stateStore.getJson(s"${StateStoreSection.STA}/$bookIdSilmarillion").get == expectedStageDocument)
-
+            val actualStageDocument = stateStore.getJson(s"${StateStoreSection.STA}/$bookIdSilmarillion").get
+            assert(actualStageDocument == expectedStageDocument)
         }
 
         { // when aggregates are missing
+
+            println("REMOVING ------------------------------------")
             val src = Flow.fromValues(
                 (Some(authorTolkienQaid, None), authorPassTolkien),
                 (Some(receiptS1Qaid, None), receiptPassS1)
@@ -234,10 +236,20 @@ class CodomainCompositionStageTest extends AnyFlatSpec, Matchers, Diagrams:
                     .runToList()
 
             val out: List[(Seq[MessageId], Seq[Passthrough])] =
-                Flow.fromIterable(outPLI).composeCodomainMessages(stateStore).runToList()
+                Flow.fromIterable(outPLI).composeCodomainMessages(relationsConfig, stateStore).runToList()
 
             // then
             assert(out.size == 2)
+
+            // stateStore.store.foreach: entry =>
+            // if entry._1.startsWith(StateStoreSection.LNK.toString) || entry._1.startsWith(
+            //         StateStoreSection.BLK.toString
+            //     )
+            // if entry._1.contains("cdc22a3c-2e16-4751-8c21-2534119cd692") || (new String(entry._2))
+            //         .contains("cdc22a3c-2e16-4751-8c21-2534119cd692")
+            // then
+            //     println(entry._1 + " -> " + new String(entry._2))
+            //     println("+++++++++++++++++++++++++")
 
             val expectedStageDocument: JsonNode = mapper.readTree("""
                 {
@@ -278,5 +290,6 @@ class CodomainCompositionStageTest extends AnyFlatSpec, Matchers, Diagrams:
                 }
             """)
 
-            assert(stateStore.getJson(s"${StateStoreSection.STA}/$bookIdSilmarillion").get == expectedStageDocument)
+            val actualStageDocument = stateStore.getJson(s"${StateStoreSection.STA}/$bookIdSilmarillion").get
+            assert(actualStageDocument == expectedStageDocument)
         }

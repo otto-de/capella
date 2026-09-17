@@ -286,11 +286,10 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
                 )
             )
 
-            assert(stateStore.store.size == 5)
+            assert(stateStore.store.size == 3)
 
             val bookLNK = stateStore.getStringSet(s"${StateStoreSection.LNK}/$bookQaid")
-            assert(bookLNK.size == 1)
-            assert(bookLNK.contains(categoryQaid.toString))
+            assert(bookLNK.isEmpty)
 
             val categoriesLNK = stateStore.getStringSet(s"${StateStoreSection.LNK}/$categoryQaid")
             assert(categoriesLNK.size == 1)
@@ -298,8 +297,7 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             val categoriesBLK =
                 stateStore.getStringSet(s"${StateStoreSection.BLK}/$categoryQaid")
-            assert(categoriesBLK.size == 1)
-            assert(categoriesBLK.contains(s"$bookQaid"))
+            assert(categoriesBLK.isEmpty)
 
             val shelfBLK =
                 stateStore.getStringSet(s"${StateStoreSection.BLK}/$storageChannel/$shelfMessageFormat/$shelfIdFi")
@@ -723,11 +721,28 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             val out = Flow.fromIterable(outP).linkDomainMessages(relationsConfig, stateStore).runToList()
 
-            // then only the aggregates should be deleted (because the opposite ends of the links are not deleted)
+            // then the aggregates and their links should be deleted
             assert(out.size == 2)
-            assert(stateStore.store.size == 42)
+
+            assert(stateStore.store.size == 38)
             assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptS1Qaid").isEmpty)
             assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptEQaid").isEmpty)
+
+            val bookLNK_Silmarillion =
+                stateStore.getStringSet(s"${StateStoreSection.LNK}/$bookSilmarillionQaid")
+            assert(!bookLNK_Silmarillion.contains(receiptS1Qaid.toString))
+
+            val receiptLNK_S1 =
+                stateStore.getStringSet(s"${StateStoreSection.LNK}/$receiptS1Qaid")
+            assert(receiptLNK_S1.isEmpty)
+
+            val receiptBLK_S1 =
+                stateStore.getStringSet(s"${StateStoreSection.BLK}/$receiptS1Qaid")
+            assert(receiptBLK_S1.isEmpty)
+
+            val shelfBLK_Fi =
+                stateStore.getStringSet(s"${StateStoreSection.BLK}/$shelfFictionQaid")
+            assert(!shelfBLK_Fi.contains(receiptS1Qaid.toString))
         }
 
         {
@@ -740,11 +755,10 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             val out = Flow.fromIterable(outP).linkDomainMessages(relationsConfig, stateStore).runToList()
 
-            // then the aggregate (Shelf FI) and its relation to the aggregate deleted before (Receipt S1) should be removed
+            // then the aggregate (Shelf FI) should be removed (no links deleted because shelf is one-end)
             assert(out.size == 1)
-            assert(stateStore.store.size == 40)
-            assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptS1Qaid").isEmpty)
-            assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptEQaid").isEmpty)
+            assert(stateStore.store.size == 37)
+            assert(stateStore.getJson(s"${StateStoreSection.DOM}/$shelfFictionQaid").isEmpty)
         }
 
         {
