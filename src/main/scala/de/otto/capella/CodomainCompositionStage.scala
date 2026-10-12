@@ -3,12 +3,11 @@ package de.otto.capella
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import de.otto.capella.ChannelName
 import de.otto.capella.JsonSupport.mapper
-import de.otto.capella.MessageFormatName
 import de.otto.capella.MessageId
 import de.otto.capella.QualifiedMessageId
 import de.otto.capella.SimpleProcessingTimeLogger.measureMap
+import de.otto.capella.config.RelationConfigs
 import de.otto.capella.kafka.Passthrough
 import de.otto.capella.statestore.StateStore
 import de.otto.capella.statestore.StateStoreSection
@@ -17,7 +16,6 @@ import org.rocksdb.RocksDBException
 import ox.flow.Flow
 
 import scala.util.control.NonFatal
-import de.otto.capella.config.RelationConfigs
 
 object CodomainCompositionStage extends LazyLogging:
 

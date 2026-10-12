@@ -111,6 +111,8 @@ object DomainLinkingStage extends LazyLogging:
                                         val affectedQmid =
                                             if backLinkRemovals.nonEmpty then backLinkRemovals.headOption
                                             else Some(qmid)
+                                        // TODO invoke identifyAffected
+                                        // TODO return id set in this stage
 
                                         // println(s"LINKINGDELETE $qmid # $affectedQmid")
 
@@ -268,6 +270,9 @@ object DomainLinkingStage extends LazyLogging:
                                             cache.removeStringFromSet(_linkKey, qmid.toString)
 
                                         flushCache(cache.viewChanged, stateStore)
+
+                                        // TODO invoke identifyAffected for qmid and backLinkRemovals
+                                        // TODO return id set in this stage
                                         (Some(qmid), pass)
 
                             catch
@@ -278,6 +283,22 @@ object DomainLinkingStage extends LazyLogging:
                                         s"Error processing record (qualifiedId=$qmid, recordKey=${pass.record.key}, recordValue=${pass.record.value}): ${ex.stackTraceAsString}"
                                     )
                                     (None, pass)
+
+    /** Identify affected codomain message ids (aka root objects).
+      */
+    private def identifyAffected(
+        currentMessageId: QualifiedMessageId,
+        config: RelationConfigs,
+        stateStore: StateStore
+    ): Set[MessageId] =
+        if currentMessageId.qualifier == config.root then Set(currentMessageId.id)
+        else
+            val parents: Set[QualifiedMessageId] =
+                stateStore
+                    .getStringSet(s"${StateStoreSection.BLK}/$currentMessageId")
+                    .map(QualifiedMessageId(_))
+            parents.flatMap: parentMessageId =>
+                identifyAffected(parentMessageId, config, stateStore)
 
     private val jsonPathContext: ParseContext =
         JsonPath.using(

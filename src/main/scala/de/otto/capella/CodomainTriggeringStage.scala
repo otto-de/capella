@@ -17,6 +17,7 @@ import ox.flow.Flow
 
 import scala.util.control.NonFatal
 
+// TODO remove this stage
 object CodomainTriggeringStage extends LazyLogging:
 
     // TODO currently we identify affected roots based on the new state.
