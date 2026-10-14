@@ -11,14 +11,14 @@ object CodomainDeduplicationStage:
 
     private def defaultConfig: CodomainDeduplicationConfig = CodomainDeduplicationConfig(1000, 20.seconds)
 
-    extension (in: Flow[(Set[MessageId], Passthrough)])
+    extension (in: Flow[(Seq[MessageId], Passthrough)])
         def deduplicateCodomainMessages(
             configOpt: Option[CodomainDeduplicationConfig]
         ): Flow[(Seq[MessageId], Seq[Passthrough])] =
             val config = configOpt.getOrElse(defaultConfig)
             if config.batchSize == 1 then
                 in.map: (payload, passthrough) =>
-                    (payload.toSeq, Seq(passthrough))
+                    (payload, Seq(passthrough))
             else
                 in
                     .groupedWithin(config.batchSize, config.batchingDuration)

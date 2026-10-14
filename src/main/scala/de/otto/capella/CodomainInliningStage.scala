@@ -3,10 +3,8 @@ package de.otto.capella
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import de.otto.capella.ChannelName
 import de.otto.capella.JsonSupport.mapper
 import de.otto.capella.Message
-import de.otto.capella.MessageFormatName
 import de.otto.capella.MessageId
 import de.otto.capella.Parallelism
 import de.otto.capella.QualifiedMessageId

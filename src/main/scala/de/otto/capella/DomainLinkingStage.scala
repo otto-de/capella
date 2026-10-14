@@ -34,13 +34,13 @@ object DomainLinkingStage extends LazyLogging:
         def linkDomainMessages(
             config: RelationConfigs,
             stateStore: StateStore
-        ): Flow[(Option[QualifiedMessageId], Passthrough)] =
+        ): Flow[(Seq[MessageId], Passthrough)] =
             in
                 .buffer()
                 .map:
                     measureMap("DomainLinking"):
                         case (None, pass) =>
-                            (None, pass)
+                            (Seq.empty, pass)
 
                         case (Some(qmid), pass) =>
                             try
@@ -106,17 +106,14 @@ object DomainLinkingStage extends LazyLogging:
 
                                         flushCache(cache.viewChanged, stateStore)
 
-                                        // If the node that was just deleted was on the "many side" as part of a
-                                        // one-to-many relationship, then mark a parent node as affected
-                                        val affectedQmid =
-                                            if backLinkRemovals.nonEmpty then backLinkRemovals.headOption
-                                            else Some(qmid)
-                                        // TODO invoke identifyAffected
-                                        // TODO return id set in this stage
+                                        // Mark parent nodes as affected when deleted message was on the the many side of a one-to-many relation
+                                        // or mark the processed message as affected
+                                        val affectedQmids: Seq[MessageId] =
+                                            if backLinkRemovals.nonEmpty then
+                                                identifyAffected(backLinkRemovals, config, stateStore)
+                                            else identifyAffected(qmid, config, stateStore).toSeq
 
-                                        // println(s"LINKINGDELETE $qmid # $affectedQmid")
-
-                                        (affectedQmid, pass)
+                                        (affectedQmids, pass)
 
                                     case Some(message) =>
                                         val parsedDoc: DocumentContext = jsonPathContext.parse(message.toJson)
@@ -271,9 +268,11 @@ object DomainLinkingStage extends LazyLogging:
 
                                         flushCache(cache.viewChanged, stateStore)
 
-                                        // TODO invoke identifyAffected for qmid and backLinkRemovals
-                                        // TODO return id set in this stage
-                                        (Some(qmid), pass)
+                                        // Mark parent nodes as affected when on the many side of a removed one-to-many relation
+                                        // and mark the processed message as affected
+                                        val affectedQmids: Seq[MessageId] =
+                                            identifyAffected(backLinkRemovals + qmid, config, stateStore)
+                                        (affectedQmids, pass)
 
                             catch
                                 case e: RocksDBException =>
@@ -282,20 +281,27 @@ object DomainLinkingStage extends LazyLogging:
                                     logger.error(
                                         s"Error processing record (qualifiedId=$qmid, recordKey=${pass.record.key}, recordValue=${pass.record.value}): ${ex.stackTraceAsString}"
                                     )
-                                    (None, pass)
+                                    (Seq.empty, pass)
+
+    private def identifyAffected(
+        startMessageIds: Set[QualifiedMessageId],
+        config: RelationConfigs,
+        stateStore: StateStore
+    ): Seq[MessageId] =
+        startMessageIds.flatMap(msg => identifyAffected(msg, config, stateStore)).toSeq
 
     /** Identify affected codomain message ids (aka root objects).
       */
     private def identifyAffected(
-        currentMessageId: QualifiedMessageId,
+        startMessageId: QualifiedMessageId,
         config: RelationConfigs,
         stateStore: StateStore
     ): Set[MessageId] =
-        if currentMessageId.qualifier == config.root then Set(currentMessageId.id)
+        if startMessageId.qualifier == config.root then Set(startMessageId.id)
         else
             val parents: Set[QualifiedMessageId] =
                 stateStore
-                    .getStringSet(s"${StateStoreSection.BLK}/$currentMessageId")
+                    .getStringSet(s"${StateStoreSection.BLK}/$startMessageId")
                     .map(QualifiedMessageId(_))
             parents.flatMap: parentMessageId =>
                 identifyAffected(parentMessageId, config, stateStore)

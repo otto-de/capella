@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import de.otto.capella.CodomainCompositionStage.composeCodomainMessages
 import de.otto.capella.CodomainDeduplicationConfig
 import de.otto.capella.CodomainDeduplicationStage.deduplicateCodomainMessages
-import de.otto.capella.CodomainTriggeringStage.triggerAffectedCodomainMessages
 import de.otto.capella.DomainLinkingStage.linkDomainMessages
 import de.otto.capella.DomainPersistenceStage.persistDomainMessages
 import de.otto.capella.JsonSupport.mapper
@@ -154,7 +153,6 @@ class CodomainCompositionStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val outPLI =
                 src.persistDomainMessages(stateStore)
                     .linkDomainMessages(relationsConfig, stateStore)
-                    .triggerAffectedCodomainMessages(relationsConfig, stateStore)
                     .deduplicateCodomainMessages(Some(CodomainDeduplicationConfig(1, 50.millis)))
                     .runToList()
 
@@ -231,7 +229,6 @@ class CodomainCompositionStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val outPLI =
                 src.persistDomainMessages(stateStore)
                     .linkDomainMessages(relationsConfig, stateStore)
-                    .triggerAffectedCodomainMessages(relationsConfig, stateStore)
                     .deduplicateCodomainMessages(Some(CodomainDeduplicationConfig(1, 50.millis)))
                     .runToList()
 
