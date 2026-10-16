@@ -26,11 +26,9 @@ object CodomainCompositionStage extends LazyLogging:
         ): Flow[(Seq[MessageId], Seq[Passthrough])] =
             in.map:
                 measureMap("CodomainComposition"): (payloads, passthroughs) =>
-                    // println(s"+++++++++++ CodomainComposition ${payloads.map(_._1).mkString("; ")}")
                     val payloadsOut: Seq[MessageId] =
                         payloads.flatMap: codomainMessageId =>
                             try
-                                println(s"+++++++++++*** CodomainComposition $codomainMessageId")
                                 val codomainMessage: ObjectNode =
                                     mapper.createObjectNode().asInstanceOf[ObjectNode]
 
@@ -39,7 +37,6 @@ object CodomainCompositionStage extends LazyLogging:
                                     codomainMessage,
                                     stateStore
                                 )
-                                // compose(qmid, codomainMessage, stateStore)
 
                                 val codomainKey = s"${StateStoreSection.STA}/${codomainMessageId}"
                                 if codomainMessage.isEmpty then stateStore.delete(codomainKey)
@@ -61,7 +58,6 @@ object CodomainCompositionStage extends LazyLogging:
         codomainMessage: ObjectNode,
         stateStore: StateStore
     ): Unit =
-        println(s"compose current $currentDomainMessageId")
         val currentDomainMessageOpt: Option[JsonNode] =
             stateStore.getJson(s"${StateStoreSection.DOM}/$currentDomainMessageId")
         val currentDomainMessageMap: ObjectNode =
@@ -78,7 +74,6 @@ object CodomainCompositionStage extends LazyLogging:
             stateStore.getStringSet(s"${StateStoreSection.LNK}/$currentDomainMessageId").map(QualifiedMessageId(_))
 
         next.foreach: nextMessageId =>
-            println(s"LINK FROM $currentDomainMessageId TO $nextMessageId")
             compose(nextMessageId, codomainMessage, stateStore)
 
     private def setObject(parent: ObjectNode, name: String, objOpt: Option[JsonNode]): Unit =

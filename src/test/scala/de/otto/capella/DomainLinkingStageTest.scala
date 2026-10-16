@@ -661,6 +661,17 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             // then
             assert(out.size == 19)
 
+            val actualAffected = out.map(_._1).flatten.distinct
+            actualAffected should contain theSameElementsAs Seq(
+                bookSilmarillionQaid,
+                bookHobbitQaid,
+                bookRingsQaid,
+                bookOrientQaid,
+                bookNileQaid,
+                bookComputerQaid,
+                bookEasyQaid
+            ).map(_.id)
+
             assert(stateStore.store.size == 44)
 
             val bookLNK_Silmarillion =
