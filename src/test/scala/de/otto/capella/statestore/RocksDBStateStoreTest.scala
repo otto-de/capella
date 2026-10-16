@@ -1,6 +1,7 @@
 package de.otto.capella.statestore
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.typesafe.scalalogging.LazyLogging
 import de.otto.capella.MessageId
 import de.otto.capella.statestore.RocksDBConfig
 import de.otto.capella.statestore.RocksDBStateStore
@@ -17,7 +18,7 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import scala.compiletime.uninitialized
 
-class RocksDBStateStoreTest extends AnyFlatSpec, Matchers, Diagrams, BeforeAndAfterEach:
+class RocksDBStateStoreTest extends AnyFlatSpec, Matchers, Diagrams, BeforeAndAfterEach, LazyLogging:
     private val mapper = new ObjectMapper()
     private var stateStore: RocksDBStateStore = uninitialized
     private var tmpFile: File = uninitialized
@@ -45,7 +46,7 @@ class RocksDBStateStoreTest extends AnyFlatSpec, Matchers, Diagrams, BeforeAndAf
 
     override def afterEach(): Unit =
         stateStore.shutdown()
-        println(s"removing temporary RocksDB file: ${tmpFile.toPath}")
+        logger.info(s"removing temporary RocksDB file: ${tmpFile.toPath}")
         deleteDirectoryRecursively(tmpFile.toPath)
 
     "RocksDBStateStore" should "perform get and put" in:

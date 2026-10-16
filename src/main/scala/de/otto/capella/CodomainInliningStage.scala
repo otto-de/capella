@@ -3,10 +3,8 @@ package de.otto.capella
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import de.otto.capella.ChannelName
 import de.otto.capella.JsonSupport.mapper
 import de.otto.capella.Message
-import de.otto.capella.MessageFormatName
 import de.otto.capella.MessageId
 import de.otto.capella.Parallelism
 import de.otto.capella.QualifiedMessageId
@@ -58,7 +56,7 @@ object CodomainInliningStage extends LazyLogging:
                                     .map: codomainMessageStaged =>
                                         val codomainMessageTemp: ObjectNode = mapper.createObjectNode()
                                         doInline(
-                                            QualifiedMessageId(config.root._1, config.root._2, codomainMessageId),
+                                            QualifiedMessageId(config.root, codomainMessageId),
                                             codomainMessageTemp,
                                             codomainMessageStaged,
                                             stateStore
@@ -107,12 +105,6 @@ object CodomainInliningStage extends LazyLogging:
                     .getStringSet(
                         s"${StateStoreSection.LNK}/$currentDomainMessageId"
                     )
-                    .map: entry =>
-                        val splittedEntry = entry.split("/")
-                        QualifiedMessageId(
-                            ChannelName(splittedEntry(0)),
-                            MessageFormatName(splittedEntry(1)),
-                            MessageId(splittedEntry(2))
-                        )
+                    .map(QualifiedMessageId(_))
             next.foreach: nextMessageId =>
                 doInline(nextMessageId, currentDomainMessage, codomainMessageStaged, stateStore)

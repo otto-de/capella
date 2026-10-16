@@ -4,7 +4,6 @@ import de.otto.capella.CodomainCompositionStage.composeCodomainMessages
 import de.otto.capella.CodomainDeduplicationStage.deduplicateCodomainMessages
 import de.otto.capella.CodomainInliningStage.inlineDomainMessages
 import de.otto.capella.CodomainPersistenceStage.persistCodomainMessages
-import de.otto.capella.CodomainTriggeringStage.triggerAffectedCodomainMessages
 import de.otto.capella.DomainLinkingStage.linkDomainMessages
 import de.otto.capella.DomainPersistenceStage.persistDomainMessages
 import de.otto.capella.KafkaSink.emitCodomainMessages
@@ -52,9 +51,8 @@ object AppWorkflow:
             .transformDomainMessages(channelConfigs, parallelism)
             .persistDomainMessages(stateStore)
             .linkDomainMessages(relationConfigs, stateStore)
-            .triggerAffectedCodomainMessages(relationConfigs, stateStore, parallelism)
             .deduplicateCodomainMessages(codomainConfig.deduplication)
-            .composeCodomainMessages(stateStore)
+            .composeCodomainMessages(relationConfigs, stateStore)
             .inlineDomainMessages(relationConfigs, stateStore, parallelism)
             .filterCodomainMessages(codomainConfig.filtering, parallelism)
             .transformCodomainMessages(codomainConfig.transformation, parallelism)

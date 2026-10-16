@@ -45,11 +45,11 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
         val src: Flow[(Option[(QualifiedMessageId)], Passthrough)] =
             Flow.fromValues((Some(bookQaid), bookPass))
 
-        val out: List[(Option[(QualifiedMessageId)], Passthrough)] =
+        val out: List[(Seq[(MessageId)], Passthrough)] =
             src.linkDomainMessages(config, stateStore).runToList()
 
         // then
-        assert(out == List((Some(bookQaid), bookPass)))
+        assert(out == List((Seq(bookQaid.id), bookPass)))
 
         assert(stateStore.store.size == 4)
 
@@ -100,11 +100,11 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
         val src: Flow[(Option[(QualifiedMessageId)], Passthrough)] =
             Flow.fromValues((Some(bookQaid), bookPass))
 
-        val out: List[(Option[(QualifiedMessageId)], Passthrough)] =
+        val out: List[(Seq[(MessageId)], Passthrough)] =
             src.linkDomainMessages(config, stateStore).runToList()
 
         // then
-        assert(out == List((Some(bookQaid), bookPass)))
+        assert(out == List((Seq(bookQaid.id), bookPass)))
 
         assert(stateStore.store.size == 4)
 
@@ -159,11 +159,11 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
         val src: Flow[(Option[(QualifiedMessageId)], Passthrough)] =
             Flow.fromValues((Some(bookQaid), bookPass))
 
-        val out: List[(Option[(QualifiedMessageId)], Passthrough)] =
+        val out: List[(Seq[(MessageId)], Passthrough)] =
             src.linkDomainMessages(config, stateStore).runToList()
 
         // then
-        assert(out == List((Some(bookQaid), bookPass)))
+        assert(out == List((Seq(bookQaid.id), bookPass)))
 
         assert(stateStore.store.size == 3)
 
@@ -221,16 +221,15 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val src: Flow[(Option[QualifiedMessageId], Passthrough)] =
                 Flow.fromIterable(outP)
 
-            val out: List[(Option[QualifiedMessageId], Passthrough)] =
-                src.linkDomainMessages(config, stateStore)
-                    .runToList()
+            val out: List[(Seq[MessageId], Passthrough)] =
+                src.linkDomainMessages(config, stateStore).runToList()
 
             // then link 3 aggregates
             assert(
                 out == List(
-                    (Some(categoryQaid), categoryPass),
-                    (Some(authorQaid), authorPass),
-                    (Some(bookQaid), bookPass)
+                    (Seq.empty, categoryPass),
+                    (Seq.empty, authorPass),
+                    (Seq(bookQaid.id), bookPass)
                 )
             )
 
@@ -274,23 +273,22 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val src: Flow[(Option[QualifiedMessageId], Passthrough)] =
                 Flow.fromIterable(outP)
 
-            val out: List[(Option[QualifiedMessageId], Passthrough)] =
+            val out: List[(Seq[MessageId], Passthrough)] =
                 src.linkDomainMessages(config, stateStore).runToList()
 
             // then
             // delete the relations between the deleted aggregates
             assert(
                 out == List(
-                    (Some(authorQaid), authorPass),
-                    (Some(bookQaid), bookPass)
+                    (Seq(bookQaid.id), authorPass), // author deleted --> its book affected
+                    (Seq(bookQaid.id), bookPass) // book deleted --> itself affected
                 )
             )
 
-            assert(stateStore.store.size == 5)
+            assert(stateStore.store.size == 3)
 
             val bookLNK = stateStore.getStringSet(s"${StateStoreSection.LNK}/$bookQaid")
-            assert(bookLNK.size == 1)
-            assert(bookLNK.contains(categoryQaid.toString))
+            assert(bookLNK.isEmpty)
 
             val categoriesLNK = stateStore.getStringSet(s"${StateStoreSection.LNK}/$categoryQaid")
             assert(categoriesLNK.size == 1)
@@ -298,8 +296,7 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             val categoriesBLK =
                 stateStore.getStringSet(s"${StateStoreSection.BLK}/$categoryQaid")
-            assert(categoriesBLK.size == 1)
-            assert(categoriesBLK.contains(s"$bookQaid"))
+            assert(categoriesBLK.isEmpty)
 
             val shelfBLK =
                 stateStore.getStringSet(s"${StateStoreSection.BLK}/$storageChannel/$shelfMessageFormat/$shelfIdFi")
@@ -349,17 +346,16 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val src: Flow[(Option[QualifiedMessageId], Passthrough)] =
                 Flow.fromIterable(outP)
 
-            val out: List[(Option[QualifiedMessageId], Passthrough)] =
-                src.linkDomainMessages(config, stateStore)
-                    .runToList()
+            val out: List[(Seq[MessageId], Passthrough)] =
+                src.linkDomainMessages(config, stateStore).runToList()
 
             // then
             assert(
                 out == List(
-                    (Some(categoryFantasyQaid), categoryFantasyPass),
-                    (Some(categoryMysteryQaid), categoryMysteryPass),
-                    (Some(authorQaid), authorPass),
-                    (Some(bookQaid), bookPass)
+                    (Seq.empty, categoryFantasyPass),
+                    (Seq.empty, categoryMysteryPass),
+                    (Seq.empty, authorPass),
+                    (Seq(bookQaid.id), bookPass)
                 )
             )
 
@@ -397,12 +393,12 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val src: Flow[(Option[QualifiedMessageId], Passthrough)] =
                 Flow.fromIterable(outP)
 
-            val out: List[(Option[QualifiedMessageId], Passthrough)] =
+            val out: List[(Seq[MessageId], Passthrough)] =
                 src.linkDomainMessages(config, stateStore).runToList()
 
             // then
             // remove old reference and add new reference
-            assert(out == List((Some(bookQaid), bookModifiedPass)))
+            assert(out == List((Seq(bookQaid.id), bookModifiedPass)))
             assert(stateStore.store.size == 10)
 
             // book references Fantasy category right now
@@ -457,16 +453,15 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val src: Flow[(Option[QualifiedMessageId], Passthrough)] =
                 Flow.fromIterable(outP)
 
-            val out: List[(Option[QualifiedMessageId], Passthrough)] =
-                src.linkDomainMessages(config, stateStore)
-                    .runToList()
+            val out: List[(Seq[MessageId], Passthrough)] =
+                src.linkDomainMessages(config, stateStore).runToList()
 
             // then
             assert(
                 out == List(
-                    (Some(categoryFantasyQaid), categoryFantasyPass),
-                    (Some(authorQaid), authorPass),
-                    (Some(bookQaid), bookPass)
+                    (Seq.empty, categoryFantasyPass),
+                    (Seq.empty, authorPass),
+                    (Seq(bookQaid.id), bookPass)
                 )
             )
 
@@ -514,12 +509,12 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             val src: Flow[(Option[QualifiedMessageId], Passthrough)] =
                 Flow.fromIterable(outP)
 
-            val out: List[(Option[QualifiedMessageId], Passthrough)] =
+            val out: List[(Seq[MessageId], Passthrough)] =
                 src.linkDomainMessages(config, stateStore).runToList()
 
             // then
             // remove reference from book to category
-            assert(out == List((Some(bookQaid), bookModifiedPass)))
+            assert(out == List((Seq(bookQaid.id), bookModifiedPass)))
 
             assert(stateStore.store.size == 7)
 
@@ -666,6 +661,17 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
             // then
             assert(out.size == 19)
 
+            val actualAffected = out.map(_._1).flatten.distinct
+            actualAffected should contain theSameElementsAs Seq(
+                bookSilmarillionQaid,
+                bookHobbitQaid,
+                bookRingsQaid,
+                bookOrientQaid,
+                bookNileQaid,
+                bookComputerQaid,
+                bookEasyQaid
+            ).map(_.id)
+
             assert(stateStore.store.size == 44)
 
             val bookLNK_Silmarillion =
@@ -723,11 +729,28 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             val out = Flow.fromIterable(outP).linkDomainMessages(relationsConfig, stateStore).runToList()
 
-            // then only the aggregates should be deleted (because the opposite ends of the links are not deleted)
+            // then the aggregates and their links should be deleted
             assert(out.size == 2)
-            assert(stateStore.store.size == 42)
+
+            assert(stateStore.store.size == 38)
             assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptS1Qaid").isEmpty)
             assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptEQaid").isEmpty)
+
+            val bookLNK_Silmarillion =
+                stateStore.getStringSet(s"${StateStoreSection.LNK}/$bookSilmarillionQaid")
+            assert(!bookLNK_Silmarillion.contains(receiptS1Qaid.toString))
+
+            val receiptLNK_S1 =
+                stateStore.getStringSet(s"${StateStoreSection.LNK}/$receiptS1Qaid")
+            assert(receiptLNK_S1.isEmpty)
+
+            val receiptBLK_S1 =
+                stateStore.getStringSet(s"${StateStoreSection.BLK}/$receiptS1Qaid")
+            assert(receiptBLK_S1.isEmpty)
+
+            val shelfBLK_Fi =
+                stateStore.getStringSet(s"${StateStoreSection.BLK}/$shelfFictionQaid")
+            assert(!shelfBLK_Fi.contains(receiptS1Qaid.toString))
         }
 
         {
@@ -740,11 +763,10 @@ class DomainLinkingStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             val out = Flow.fromIterable(outP).linkDomainMessages(relationsConfig, stateStore).runToList()
 
-            // then the aggregate (Shelf FI) and its relation to the aggregate deleted before (Receipt S1) should be removed
+            // then the aggregate (Shelf FI) should be removed (no links deleted because shelf is one-end)
             assert(out.size == 1)
-            assert(stateStore.store.size == 40)
-            assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptS1Qaid").isEmpty)
-            assert(stateStore.getJson(s"${StateStoreSection.DOM}/$receiptEQaid").isEmpty)
+            assert(stateStore.store.size == 37)
+            assert(stateStore.getJson(s"${StateStoreSection.DOM}/$shelfFictionQaid").isEmpty)
         }
 
         {
