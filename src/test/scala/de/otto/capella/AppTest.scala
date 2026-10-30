@@ -53,8 +53,9 @@ class AppTest extends AnyFlatSpec, Matchers, Diagrams, EmbeddedKafka, BeforeAndA
         val mediaTopic = "media"
         val authorsTopic = "authors"
 
-        // fill source topics
+        // fill source topics (books and authors)
         publishToKafka(mediaTopic, TestData.setupBookIdEasy.toString, TestData.setupBookEasy.toJson.toPrettyString)
+        sleep(200.millis)
         publishToKafka(
             authorsTopic,
             TestData.setupAuthorIdTolkien.toString,
@@ -75,6 +76,13 @@ class AppTest extends AnyFlatSpec, Matchers, Diagrams, EmbeddedKafka, BeforeAndA
             TestData.setupAuthorIdFeynman.toString,
             TestData.setupAuthorFeynman.toJson.toPrettyString
         )
+        sleep(200.millis)
+        publishToKafka(mediaTopic, TestData.setupBookIdNile.toString, TestData.setupBookNile.toJson.toPrettyString)
+        publishToKafka(
+            mediaTopic,
+            TestData.setupBookIdOrientExpress.toString,
+            TestData.setupBookOrientExpress.toJson.toPrettyString
+        )
 
         // run application
         supervised:
@@ -82,10 +90,10 @@ class AppTest extends AnyFlatSpec, Matchers, Diagrams, EmbeddedKafka, BeforeAndA
                 App.run(cliArgs)
 
         // consume from target topic
-        val aggregatedMessages = consumeNumberKeyedMessagesFrom(number = 1, topic = "rich-books")
+        val aggregatedMessages = consumeNumberKeyedMessagesFrom(number = 3, topic = "rich-books")
 
-        val expectedMessageKey = TestData.setupBookIdEasy.toString
-        val expectedMessageValue = {
+        val expectedMessageKey0 = TestData.setupBookIdEasy.toString
+        val expectedMessageValue0 = {
             val authors = {
                 val authorsArray = mapper.createArrayNode()
                 authorsArray.add(TestData.setupAuthorFeynman.toJson)
@@ -96,10 +104,38 @@ class AppTest extends AnyFlatSpec, Matchers, Diagrams, EmbeddedKafka, BeforeAndA
                 .set(s"${TestData.authorsChannel}/${TestData.authorMessageFormat}", authors)
             book.toString()
         }
+        val expectedMessageKey1 = TestData.setupBookIdNile.toString
+        val expectedMessageValue1 = {
+            val authors = {
+                val authorsArray = mapper.createArrayNode()
+                authorsArray.add(TestData.setupAuthorCristie.toJson)
+            }
+            val book = TestData.setupBookNile.toJson
+            book
+                .asInstanceOf[ObjectNode]
+                .set(s"${TestData.authorsChannel}/${TestData.authorMessageFormat}", authors)
+            book.toString()
+        }
+        val expectedMessageKey2 = TestData.setupBookIdOrientExpress.toString
+        val expectedMessageValue2 = {
+            val authors = {
+                val authorsArray = mapper.createArrayNode()
+                authorsArray.add(TestData.setupAuthorCristie.toJson)
+            }
+            val book = TestData.setupBookOrientExpress.toJson
+            book
+                .asInstanceOf[ObjectNode]
+                .set(s"${TestData.authorsChannel}/${TestData.authorMessageFormat}", authors)
+            book.toString()
+        }
 
         // assert output
-        aggregatedMessages(0)._1 shouldEqual expectedMessageKey
-        aggregatedMessages(0)._2 shouldEqual expectedMessageValue
+        aggregatedMessages(0)._1 shouldEqual expectedMessageKey0
+        aggregatedMessages(0)._2 shouldEqual expectedMessageValue0
+        aggregatedMessages(1)._1 shouldEqual expectedMessageKey1
+        aggregatedMessages(1)._2 shouldEqual expectedMessageValue1
+        aggregatedMessages(2)._1 shouldEqual expectedMessageKey2
+        aggregatedMessages(2)._2 shouldEqual expectedMessageValue2
 
     it should "shut down on database error immediately" in:
 
