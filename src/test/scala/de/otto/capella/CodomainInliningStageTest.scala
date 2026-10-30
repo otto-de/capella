@@ -5,7 +5,6 @@ import de.otto.capella.CodomainCompositionStage.composeCodomainMessages
 import de.otto.capella.CodomainDeduplicationConfig
 import de.otto.capella.CodomainDeduplicationStage.deduplicateCodomainMessages
 import de.otto.capella.CodomainInliningStage.inlineDomainMessages
-import de.otto.capella.CodomainTriggeringStage.triggerAffectedCodomainMessages
 import de.otto.capella.DomainLinkingStage.linkDomainMessages
 import de.otto.capella.DomainPersistenceStage.persistDomainMessages
 import de.otto.capella.JsonSupport.mapper
@@ -154,9 +153,8 @@ class CodomainInliningStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
             src.persistDomainMessages(stateStore)
                 .linkDomainMessages(relationsConfig, stateStore)
-                .triggerAffectedCodomainMessages(relationsConfig, stateStore)
                 .deduplicateCodomainMessages(Some(CodomainDeduplicationConfig(1, 50.millis)))
-                .composeCodomainMessages(stateStore)
+                .composeCodomainMessages(relationsConfig, stateStore)
                 .runDrain()
 
             val out =
@@ -376,9 +374,8 @@ class CodomainInliningStageTest extends AnyFlatSpec, Matchers, Diagrams:
 
         src.persistDomainMessages(stateStore)
             .linkDomainMessages(relationsConfig, stateStore)
-            .triggerAffectedCodomainMessages(relationsConfig, stateStore)
             .deduplicateCodomainMessages(Some(CodomainDeduplicationConfig(1, 50.millis)))
-            .composeCodomainMessages(stateStore)
+            .composeCodomainMessages(relationsConfig, stateStore)
             .runDrain()
 
         val out =

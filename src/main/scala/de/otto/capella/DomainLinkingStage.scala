@@ -34,13 +34,13 @@ object DomainLinkingStage extends LazyLogging:
         def linkDomainMessages(
             config: RelationConfigs,
             stateStore: StateStore
-        ): Flow[(Option[QualifiedMessageId], Passthrough)] =
+        ): Flow[(Seq[MessageId], Passthrough)] =
             in
                 .buffer()
                 .map:
                     measureMap("DomainLinking"):
                         case (None, pass) =>
-                            (None, pass)
+                            (Seq.empty, pass)
 
                         case (Some(qmid), pass) =>
                             try
@@ -53,40 +53,67 @@ object DomainLinkingStage extends LazyLogging:
 
                                 messageOpt match
                                     case None =>
-                                        // Domain message was deleted, so delete all associated links & backlinks
-                                        // when messages on both ends are deleted
-                                        // TODO only when "many"-side was deleted?
+                                        // Domain message was deleted, so delete associated links & backlinks where this messages sits on the "many side"
 
-                                        val linkKey = s"${StateStoreSection.LNK}/$qmid"
-                                        val linkValues =
+                                        // (a) remove many-to-one relations starting here
+                                        val linkKey: String = s"${StateStoreSection.LNK}/$qmid"
+
+                                        val linkValuesOld: Map[(ChannelName, MessageFormatName), QualifiedMessageId] =
                                             cache
                                                 .getStringSet(linkKey)
-                                                .filter(v => cache.get(s"${StateStoreSection.DOM}/$v").isEmpty)
+                                                .map: entryStr =>
+                                                    val entryQmid = QualifiedMessageId(entryStr)
+                                                    entryQmid.qualifier -> entryQmid
+                                                .toMap
 
-                                        // Delete backlinks ending here
-                                        linkValues.foreach: value =>
-                                            val _backLinkKey = s"${StateStoreSection.BLK}/$value"
-                                            cache.removeStringFromSet(_backLinkKey, qmid.toString)
+                                        val linkRemovals = config.manyToOneRelationsStartingFrom
+                                            .getOrElse(qmid.qualifier, Set.empty)
+                                            .flatMap(mtoConfig => linkValuesOld.get(mtoConfig.relTo))
 
-                                        // Delete links starting here
-                                        cache.removeStringsFromSet(linkKey, linkValues)
+                                        // (a.1) links
+                                        cache.removeStringsFromSet(linkKey, linkRemovals.map(_.toString))
 
+                                        // (a.2) back links
+                                        linkRemovals
+                                            .foreach: value =>
+                                                val _backLinkKey = s"${StateStoreSection.BLK}/$value"
+                                                cache.removeStringFromSet(_backLinkKey, qmid.toString)
+
+                                        // (b) delete one-to-many relations ending here
                                         val backLinkKey = s"${StateStoreSection.BLK}/$qmid"
-                                        val backLinkValues =
+
+                                        val backLinkValuesOld
+                                            : Map[(ChannelName, MessageFormatName), QualifiedMessageId] =
                                             cache
                                                 .getStringSet(backLinkKey)
-                                                .filter(v => cache.get(s"${StateStoreSection.DOM}/$v").isEmpty)
+                                                .map: entryStr =>
+                                                    val entryQmid = QualifiedMessageId(entryStr)
+                                                    entryQmid.qualifier -> entryQmid
+                                                .toMap
 
-                                        // Delete links ending here
-                                        backLinkValues.foreach: value =>
+                                        val backLinkRemovals =
+                                            config.oneToManyRelationsLeadingTo
+                                                .getOrElse(qmid.qualifier, Set.empty)
+                                                .flatMap(otmConfig => backLinkValuesOld.get(otmConfig.relFrom))
+
+                                        // (b.1) back links
+                                        cache.removeStringsFromSet(backLinkKey, backLinkRemovals.map(_.toString))
+
+                                        // (b.2) links
+                                        backLinkRemovals.foreach: value =>
                                             val _linkKey = s"${StateStoreSection.LNK}/$value"
                                             cache.removeStringFromSet(_linkKey, qmid.toString)
 
-                                        // Delete backlinks starting here
-                                        cache.removeStringsFromSet(backLinkKey, backLinkValues)
-
                                         flushCache(cache.viewChanged, stateStore)
-                                        (Some(qmid), pass)
+
+                                        // Mark parent nodes as affected when deleted message was on the the many side of a one-to-many relation
+                                        // or mark the processed message as affected
+                                        val affectedQmids: Seq[MessageId] =
+                                            if backLinkRemovals.nonEmpty then
+                                                identifyAffected(backLinkRemovals, config, stateStore)
+                                            else identifyAffected(qmid, config, stateStore).toSeq
+
+                                        (affectedQmids, pass)
 
                                     case Some(message) =>
                                         val parsedDoc: DocumentContext = jsonPathContext.parse(message.toJson)
@@ -240,7 +267,12 @@ object DomainLinkingStage extends LazyLogging:
                                             cache.removeStringFromSet(_linkKey, qmid.toString)
 
                                         flushCache(cache.viewChanged, stateStore)
-                                        (Some(qmid), pass)
+
+                                        // Mark parent nodes as affected when on the many side of a removed one-to-many relation
+                                        // and mark the processed message as affected
+                                        val affectedQmids: Seq[MessageId] =
+                                            identifyAffected(backLinkRemovals + qmid, config, stateStore)
+                                        (affectedQmids, pass)
 
                             catch
                                 case e: RocksDBException =>
@@ -249,7 +281,30 @@ object DomainLinkingStage extends LazyLogging:
                                     logger.error(
                                         s"Error processing record (qualifiedId=$qmid, recordKey=${pass.record.key}, recordValue=${pass.record.value}): ${ex.stackTraceAsString}"
                                     )
-                                    (None, pass)
+                                    (Seq.empty, pass)
+
+    private def identifyAffected(
+        startMessageIds: Set[QualifiedMessageId],
+        config: RelationConfigs,
+        stateStore: StateStore
+    ): Seq[MessageId] =
+        startMessageIds.flatMap(msg => identifyAffected(msg, config, stateStore)).toSeq
+
+    /** Identify affected codomain message ids (aka root objects).
+      */
+    private def identifyAffected(
+        startMessageId: QualifiedMessageId,
+        config: RelationConfigs,
+        stateStore: StateStore
+    ): Set[MessageId] =
+        if startMessageId.qualifier == config.root then Set(startMessageId.id)
+        else
+            val parents: Set[QualifiedMessageId] =
+                stateStore
+                    .getStringSet(s"${StateStoreSection.BLK}/$startMessageId")
+                    .map(QualifiedMessageId(_))
+            parents.flatMap: parentMessageId =>
+                identifyAffected(parentMessageId, config, stateStore)
 
     private val jsonPathContext: ParseContext =
         JsonPath.using(
