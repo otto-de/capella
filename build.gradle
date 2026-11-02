@@ -55,7 +55,7 @@ dependencies {
 }
 
 scala {
-    scalaVersion = '3.8.4'
+    scalaVersion = '3.9.0'
 }
 
 tasks.withType(ScalaCompile) {
@@ -65,7 +65,7 @@ tasks.withType(ScalaCompile) {
             '-deprecation',
             '-feature',
             '-unchecked',
-            '-source:3.8',
+            '-source:3.9',
             '-release:25',
             '-Wunused:all']
 }
