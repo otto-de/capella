@@ -35,7 +35,6 @@ dependencies {
     implementation libs.pureconfig.generic
     implementation libs.pureconfig.yaml
     implementation libs.rocksdb
-    implementation libs.scala.library
     implementation libs.scalalogging
     implementation libs.scallop
     implementation libs.tapir.core
