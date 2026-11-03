@@ -44,7 +44,7 @@ dependencies {
     testImplementation libs.embeddedkafka
     testImplementation libs.junit.platform.launcher
     testImplementation libs.kafka.clients
-    testImplementation libs.kafka.metadata
+    testImplementation libs.kafka.server.common
     testImplementation libs.opentelemetry.sdk.testing
     testImplementation libs.scalatest
     testImplementation libs.tapir.sttp.stub4.server
