@@ -27,6 +27,7 @@ dependencies {
     implementation libs.jolt
     implementation libs.jsonpath
     implementation libs.logback.classic
+    implementation libs.logback.ecs.encoder
     implementation libs.opentelemetry.sdk
     implementation libs.opentelemetry.sdk.autoconfig
     implementation libs.ox.core
