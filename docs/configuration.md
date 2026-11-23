@@ -2,6 +2,16 @@
 
 ## Environment variables
 
+### CAPELLA_OPTS
+
+CAPELLA_OPTS is an environment variable that you can set to pass custom settings to the Java Virtual Machine (JVM) that runs Capella. 
+
+### CAPELLA_CONFIG_FILE
+
+### CAPELLA_ADDITIONAL_KAFKA_PROPERTIES
+
+### CAPELLA_STATE_STORE_PATH
+
 ## Command-line arguments
 
 ## The main application config file
@@ -328,3 +338,14 @@ kafka-clusters:
   - optional
   - type: boolean
   - default: true
+
+## Logging
+
+By default, Capella logs to the console via [Logback](https://logback.qos.ch/documentation.html). However, it is possible to customise the logging behaviour by specifying your own Logback configuration file via an environment variable in your Dockerfile: 
+```dockerfile 
+ENV CAPELLA_OPTS="-Dlogback.configurationFile=/path/to/custom-logback.xml"
+```
+
+### ECS Logging
+
+If your deployment is running on [ECS](https://aws.amazon.com/ecs), it is possible to format the logging output to suit Elastic, in addition to Logback’s standard mechanisms (appenders, encoders, etc.). The required `EcsEncoder` is already located on Capella’s classpath. See [here](https://www.elastic.co/docs/reference/ecs/logging/java/setup#_use_the_ecs_encoderformatterlayout) for details. 
