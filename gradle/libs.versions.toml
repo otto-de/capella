@@ -31,7 +31,13 @@ junit = { module = "org.scalatestplus:junit-5-13_3", version.ref = "junit" }
 junit-platform-engine = { module = "org.junit.platform:junit-platform-engine", version.ref = "junit-platform" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
+kafka-group-coordinator = { module = "org.apache.kafka:kafka-group-coordinator", version.ref = "kafka" }
+kafka-metadata = { module = "org.apache.kafka:kafka-metadata", version.ref = "kafka" }
+kafka-raft = { module = "org.apache.kafka:kafka-raft", version.ref = "kafka" }
+kafka-server = { module = "org.apache.kafka:kafka-server", version.ref = "kafka" }
 kafka-server-common = { module = "org.apache.kafka:kafka-server-common", version.ref = "kafka" }
+kafka-share-coordinator = { module = "org.apache.kafka:kafka-share-coordinator", version.ref = "kafka" }
+kafka-storage = { module = "org.apache.kafka:kafka-storage", version.ref = "kafka" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logback-ecs-encoder = { module = "co.elastic.logging:logback-ecs-encoder", version.ref = "logback-ecs-encoder" }
 opentelemetry-sdk = { module = "io.opentelemetry:opentelemetry-sdk", version.ref = "opentelemetry" }
