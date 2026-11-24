@@ -65,8 +65,8 @@ tasks.withType(ScalaCompile) {
             '-deprecation',
             '-feature',
             '-unchecked',
-            '-source:3.8',
-            '-release:25',
+            '-java-output-version', 
+            '25', 
             '-Wunused:all']
 }
 
