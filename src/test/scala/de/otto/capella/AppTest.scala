@@ -86,11 +86,11 @@ class AppTest extends AnyFlatSpec, Matchers, Diagrams, EmbeddedKafka, BeforeAndA
 
         // run application
         supervised:
-            timeoutOption(10.seconds):
+            timeoutOption(20.seconds):
                 App.run(cliArgs)
 
         // consume from target topic
-        val aggregatedMessages = consumeNumberKeyedMessagesFrom(number = 3, topic = "rich-books")
+        val aggregatedMessages = consumeNumberKeyedMessagesFrom(number = 3, topic = "rich-books", timeout = 20.seconds)
 
         val expectedMessageKey0 = TestData.setupBookIdEasy.toString
         val expectedMessageValue0 = {

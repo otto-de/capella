@@ -5,7 +5,7 @@ plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     id 'application'
 
-    id 'io.github.cosmicsilence.scalafix' version '0.3.0'
+    id 'io.github.cosmicsilence.scalafix' version '0.3.1'
 
     // IntelliJ IDEA plugin to configure source/javadoc downloads
     id 'idea'
@@ -26,6 +26,7 @@ dependencies {
     implementation libs.jackson.databind
     implementation libs.jolt
     implementation libs.jsonpath
+    implementation libs.kafka.clients
     implementation libs.logback.classic
     implementation libs.logback.ecs.encoder
     implementation libs.opentelemetry.sdk
@@ -44,8 +45,13 @@ dependencies {
     testImplementation libs.commons.io
     testImplementation libs.embeddedkafka
     testImplementation libs.junit.platform.launcher
-    testImplementation libs.kafka.clients
+    testImplementation libs.kafka.group.coordinator
+    testImplementation libs.kafka.metadata
+    testImplementation libs.kafka.raft
+    testImplementation libs.kafka.server
     testImplementation libs.kafka.server.common
+    testImplementation libs.kafka.share.coordinator
+    testImplementation libs.kafka.storage
     testImplementation libs.opentelemetry.sdk.testing
     testImplementation libs.scalatest
     testImplementation libs.tapir.sttp.stub4.server
@@ -55,7 +61,7 @@ dependencies {
 }
 
 scala {
-    scalaVersion = '3.8.4'
+    scalaVersion = '3.10.1'
 }
 
 tasks.withType(ScalaCompile) {
@@ -65,8 +71,8 @@ tasks.withType(ScalaCompile) {
             '-deprecation',
             '-feature',
             '-unchecked',
-            '-java-output-version', 
-            '25', 
+            '-java-output-version',
+            '25',
             '-Wunused:all']
 }
 
